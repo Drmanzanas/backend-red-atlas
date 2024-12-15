@@ -33,10 +33,3 @@ export class CreatePropertyDto {
     @Type(() => CreateAdvertisementDto)
     advertisements?: CreateAdvertisementDto[];
 }
-
-export class BulkCreatePropertyDto {
-    @ValidateNested({ each: true })
-    @Type(() => CreatePropertyDto)
-    @ArrayMinSize(1, { message: 'Debe proporcionar al menos una propiedad para crear.' })
-    properties: CreatePropertyDto[];
-}

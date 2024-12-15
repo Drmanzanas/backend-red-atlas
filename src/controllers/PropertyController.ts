@@ -1,112 +1,193 @@
-
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database/data-source';
 import { Property } from '../entities/Property';
-import { Advertisement } from '../entities/Advertisement';
-import { BulkCreatePropertyDto, CreatePropertyDto } from '../dto/BulkCreatePropertyDto';
-import { validate } from 'class-validator';
-import { plainToClass } from 'class-transformer';
-import { QueryFailedError } from 'typeorm';
-import { AdvertisementStatus } from '../enums/Advertisement';
-import { PropertyType } from '../enums/Properties';
+import { SelectQueryBuilder } from 'typeorm';
 
 export class PropertyController {
-
-    static bulkCreate = async (req: Request, res: Response) => {
-    
-        const bulkCreateDto = plainToClass(BulkCreatePropertyDto, req.body);
-
-    
-        const errors = await validate(bulkCreateDto, { whitelist: true, forbidNonWhitelisted: true });
-        if (errors.length > 0) {
-        
-            const formattedErrors = errors.map(error => {
-                return {
-                    property: error.property,
-                    constraints: error.constraints,
-                    children: error.children,
-                };
-            });
-            res.status(400).json({ errors: formattedErrors });
-            return;
-        }
-
-        const propertiesData: CreatePropertyDto[] = bulkCreateDto.properties;
-
-    
-        const propertiesToInsert = propertiesData.map(data => ({
-            address: data.address,
-            area: data.area,
-            ownerName: data.ownerName,
-            sector: data.sector,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        }));
-
-    
-        const advertisementsToInsert: Partial<Advertisement>[] = [];
-        propertiesData.forEach((data, index) => {
-            if (data.advertisements && data.advertisements.length > 0) {
-                data.advertisements.forEach(adData => {
-                    advertisementsToInsert.push({
-                        price: adData.price,
-                        status: AdvertisementStatus[adData.status.toUpperCase().replace(' ', '_') as keyof typeof AdvertisementStatus],
-                        propertyType: PropertyType[adData.propertyType.toUpperCase() as keyof typeof PropertyType],
-                    
-                    });
-                });
-            }
-        });
-
+    static getAll = async (req: Request, res: Response) => {
         try {
-        
-            await AppDataSource.transaction(async transactionalEntityManager => {
-            
-                const insertResult = await transactionalEntityManager
-                    .createQueryBuilder()
-                    .insert()
-                    .into(Property)
-                    .values(propertiesToInsert)
-                    .returning(['id'])
-                    .execute();
+            const propertyRepository = AppDataSource.getRepository(Property);
+            const {
+                sector,
+                propertyType,
+                status,
+                minArea,
+                maxArea,
+                orderBy = 'id',
+                order = 'ASC',
+                page = '1',
+                limit = '10',
+            } = req.query;
 
-                const insertedProperties = insertResult.generatedMaps as Array<{ id: string }>;
+            const pageNumber = parseInt(page as string, 10) || 1;
+            const pageSize = parseInt(limit as string, 10) || 10;
+            const skip = (pageNumber - 1) * pageSize;
 
-            
-                let adIndex = 0;
-                propertiesData.forEach((data, propIndex) => {
-                    if (data.advertisements && data.advertisements.length > 0) {
-                        data.advertisements.forEach(adData => {
-                            advertisementsToInsert[adIndex].property = { id: insertedProperties[propIndex].id } as Property;
-                            adIndex++;
-                        });
-                    }
-                });
+            const qb: SelectQueryBuilder<Property> = propertyRepository.createQueryBuilder('property')
+                .leftJoinAndSelect('property.advertisements', 'advertisement')
+                .leftJoinAndSelect('property.transactions', 'transaction');
 
-            
-                if (advertisementsToInsert.length > 0) {
-                    await transactionalEntityManager
-                        .createQueryBuilder()
-                        .insert()
-                        .into(Advertisement)
-                        .values(advertisementsToInsert)
-                        .execute();
-                }
+            if (sector) qb.andWhere('property.sector = :sector', { sector });
+            if (propertyType) qb.andWhere('advertisement.propertyType = :propertyType', { propertyType });
+            if (status) qb.andWhere('advertisement.status = :status', { status });
+            if (minArea) qb.andWhere('property.area >= :minArea', { minArea: parseFloat(minArea as string) });
+            if (maxArea) qb.andWhere('property.area <= :maxArea', { maxArea: parseFloat(maxArea as string) });
+
+            qb.addSelect(`
+                property.area * (
+                    SELECT AVG(ad.price / p.area)
+                    FROM advertisements ad
+                    JOIN properties p ON ad.property_id = p.id
+                    WHERE p.sector = property.sector
+                )
+            `, 'valuation');
+
+            const allowedOrderFields = ['id', 'address', 'area', 'ownerName', 'sector', 'valuation'];
+            const orderByField = allowedOrderFields.includes(orderBy as string) ? orderBy : 'id';
+            const orderDirection = (order === 'DESC') ? 'DESC' : 'ASC';
+
+            qb.orderBy(`property.${orderByField}`, orderDirection as 'ASC' | 'DESC');
+            qb.skip(skip).take(pageSize);
+
+            const [properties, total] = await qb.getManyAndCount();
+            const totalPages = Math.ceil(total / pageSize);
+
+            res.json({
+                data: properties,
+                pagination: {
+                    total,
+                    page: pageNumber,
+                    limit: pageSize,
+                    totalPages,
+                },
+            });
+        } catch (error) {
+            console.error('Error fetching properties:', error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    };
+
+    static getAllWithValuations = async (_req: Request, res: Response) => {
+        try {
+            const propertyRepository = AppDataSource.getRepository(Property);
+            const qb: SelectQueryBuilder<Property> = propertyRepository.createQueryBuilder('property')
+                .leftJoinAndSelect('property.advertisements', 'advertisement')
+                .leftJoinAndSelect('property.transactions', 'transaction');
+
+            qb.addSelect(`
+                property.area * (
+                    SELECT AVG(ad.price / p.area)
+                    FROM advertisements ad
+                    JOIN properties p ON ad.property_id = p.id
+                    WHERE p.sector = property.sector
+                )
+            `, 'valuation');
+
+            const properties = await qb.getRawAndEntities();
+            const result = properties.entities.map((property, index) => ({
+                ...property,
+                valuation: parseFloat(properties.raw[index].valuation),
+            }));
+
+            res.json(result);
+        } catch (error) {
+            console.error('Error fetching properties with valuations:', error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    };
+
+    static getById = async (req: Request, res: Response) => {
+        try {
+            const propertyRepository = AppDataSource.getRepository(Property);
+            const { id } = req.params;
+
+            const property = await propertyRepository.findOne({
+                where: { id },
+                relations: ['advertisements', 'transactions'],
             });
 
-        
-            res.status(201).json({ message: 'Propiedades y advertisements creados exitosamente.' });
-            return;
-        } catch (error) {
-            if (error instanceof QueryFailedError) {
-            
-                res.status(400).json({ message: 'Error al crear las propiedades y advertisements.', details: error.message });
+            if (!property) {
+                res.status(404).json({ message: 'Property not found.' });
                 return;
             }
 
-        
-            res.status(500).json({ message: 'Error interno del servidor.' });
-            return;
+            res.json(property);
+        } catch (error) {
+            console.error('Error fetching property:', error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    };
+
+    static create = async (req: Request, res: Response) => {
+        try {
+            const propertyRepository = AppDataSource.getRepository(Property);
+            const { address, area, ownerName, sector } = req.body;
+
+            if (!address || !area || !ownerName || !sector) {
+                res.status(400).json({ message: 'Missing required fields.' });
+                return;
+            }
+
+            const property = propertyRepository.create({
+                address,
+                area,
+                ownerName,
+                sector,
+            });
+
+            const savedProperty = await propertyRepository.save(property);
+            res.status(201).json(savedProperty);
+        } catch (error) {
+            console.error('Error creating property:', error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    };
+
+    static update = async (req: Request, res: Response) => {
+        try {
+            const propertyRepository = AppDataSource.getRepository(Property);
+            const { id } = req.params;
+            const { address, area, ownerName, sector } = req.body;
+
+            const property = await propertyRepository.findOneBy({ id });
+
+            if (!property) {
+                res.status(404).json({ message: 'Property not found.' });
+                return;
+            }
+
+            propertyRepository.merge(property, {
+                address,
+                area,
+                ownerName,
+                sector,
+            });
+
+            const updatedProperty = await propertyRepository.save(property);
+            res.json(updatedProperty);
+        } catch (error) {
+            console.error('Error updating property:', error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    };
+
+    static delete = async (req: Request, res: Response) => {
+        try {
+            const propertyRepository = AppDataSource.getRepository(Property);
+            const { id } = req.params;
+
+            const property = await propertyRepository.findOneBy({ id });
+
+            if (!property) {
+                res.status(404).json({ message: 'Property not found.' });
+                return;
+            }
+
+            await propertyRepository.remove(property);
+            res.json({ message: 'Property deleted successfully.' });
+        } catch (error) {
+            console.error('Error deleting property:', error);
+            res.status(500).json({ message: 'Internal server error.' });
         }
     };
 }
