@@ -23,7 +23,7 @@ Este proyecto es una API para la gestión de información catastral e inmobiliar
 1. **Clonar el repositorio**
 
    ```bash
-   git clone https://github.com/Drmanzanas/backend-challenge.git
+   git clone https://github.com/Drmanzanas/backend-red-atlas.git
    cd backend-challenge
    ```
 
