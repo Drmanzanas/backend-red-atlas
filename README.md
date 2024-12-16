@@ -73,7 +73,7 @@ Para levantar la base de datos PostgreSQL con Docker:
    Carga los roles iniciales (`admin`, `user`):
 
    ```bash
-   npm run seed:roles
+   npm run seed:roles:dev
    ```
 
 ---
