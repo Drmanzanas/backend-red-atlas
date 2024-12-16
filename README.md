@@ -1,134 +1,188 @@
-# Backend Challenge - Mid-Level
+
+# Red Atlas Backend Challenge - Mid-Level
 
 ## Descripción
 
-El objetivo de este desafío es construir una API para gestionar información catastral e inmobiliaria. Evaluaremos tu habilidad para manejar grandes volúmenes de datos, diseñar estructuras eficientes y aplicar buenas prácticas de desarrollo backend.
-
-## Requisitos Técnicos
-
-- **Lenguaje**: Node.js + TypeScript
-- **Framework**: Express
-- **Base de Datos**: PostgreSQL 
-- **ORM**: TypeORM (usando migraciones)
-- **Autenticación**: JWT
-
-## Requisitos del Proyecto
-
-1. **Endpoints CRUD** para las siguientes entidades, por ejemplo:
-   - **Propiedades**:
-     - `address`
-     - `area`
-     - `ownerName`
-     - `sector` (`residential`, `commercial`, `industrial`, `agricultural`)
-   - **Anuncios** asociados a Propiedades:
-     - `price`
-     - `status` (`for_sale`, `for_lease`)
-     - `propertyType` (`apartment`, `house`, `retail`, `land`, `industrial`)
-   - **Transactions** asociadas a Propiedades:
-     - `address`
-     - `type` (`sale_purchase`, `lease`, `mortgage`, `judicial sale`, `other`)
-     - `date`
-     - `price`
-2. **Autenticación y Autorización**:
-   - Implementar autenticación con JWT.
-   - Roles (`user`, `admin`) para restringir acceso a ciertos endpoints.
-
-3. **Consultas Complejas**:
-
-   - **Filtros Avanzados 🔎**
-     - Listar propiedades aplicando filtros múltiples utilizando todas las entidades relacionables.
-     - Aplicar ordenamiento y paginación.
-
-   - **Integración de Carga Pesada 🚛**  
-     En esta tarea, deberás demostrar tu capacidad para manejar grandes volúmenes de datos y calcular dinámicamente valores adicionales para enriquecer la información presentada en los endpoints.
-
-     - **Requerimiento**:  
-       Lista todas las parcelas y calcula dinámicamente un campo adicional como `valuation`. Este valor debe ser generado en base a una fórmula que definas según las propiedades de las parcelas (por ejemplo, `valuation = area * property price`).  
-
-     - **Ejemplo de Fórmula**:  
-       ```text
-       valuation = area (en m²) * precio promedio por m² (basado en propiedades del mismo sector)
-       ```
-
-     - **Objetivo**:  
-       Optimizar la generación de este campo para que la consulta pueda manejar eficientemente un gran número de registros.
-
-     - **Tips para Implementación**:
-       - Considera usar una consulta SQL con `JOIN` y agregaciones para calcular el `valuation` directamente desde la base de datos.
-       - Si usas cálculos en el backend, asegúrate de que estén optimizados y no ralenticen las respuestas.
-       - Piensa en cómo podrías manejar este cálculo para un gran volumen de datos sin afectar el rendimiento.
-
-## Extras Opcionales 🌟
-- **OAuth 2.0**.
-- **Docker Compose**.
-- **Pruebas unitarias**.
-- **Consultas Complejas:**
-  - **Geográficas (Altamente Valorado)🌍**  
-     Esta funcionalidad es opcional, pero implementarla mostrará tu capacidad para manejar cálculos espaciales y datos geográficos, algo que valoraremos enormemente. Si decides implementarlo, sumarás puntos extra en tu evaluación. 🚀
-
-     Puedes simular coordenadas geográficas para las Propiedades/Anuncios, almacenándolas en la base de datos y utilizando una librería como [PostGIS](https://postgis.net/) para realizar cálculos espaciales. Aquí tienes algunas ideas interesantes:  
-     - **Filtrado por Radio 🧭**: Filtra propiedades dentro de un radio de X kilómetros de una ubicación específica.  
-     - **Orden por Proximidad 📍**: Ordena propiedades según su cercanía a un punto de referencia.  
-     - **Cálculo de Áreas 🌐**: Calcula las áreas totales de propiedades en un sector o región.
-
-     💡 **Consejo**: Si no estás familiarizado con cálculos espaciales, PostGIS es un excelente punto de partida. ¡Inténtalo! 🎉
-
-   - **Análisis de Datos (un gran plus)📊**  
-     Esta funcionalidad no es obligatoria, pero destacará tu capacidad técnica y será un diferencial importante en la evaluación. Es ideal para demostrar habilidades en análisis y generación de datos útiles para dashboards. 🚀
-
-     En esta sección, deberás generar información que permita representar datos relevantes en gráficos y/o dashboards. Algunas ideas que puedes implementar:
-
-     - **Distribución por Sector 🏙️**  
-       Agrupa y cuenta las propiedades o anuncios según su sector (`residential`, `commercial`, etc.) y proporciona datos listos para gráficos de barras o tortas.
-
-     - **Tipos de Propiedades 🏡**  
-       Genera estadísticas sobre la cantidad de propiedades por tipo (`apartment`, `house`, etc.). ¡Perfecto para gráficos de pastel o barras apiladas!
-
-     - **Tendencias en el Tiempo 📅**  
-       Analiza las transacciones por fecha (`sale_purchase`, `lease`) y agrúpalas por meses o años. Esto es ideal para gráficos de líneas o áreas, mostrando tendencias en precios o actividad del mercado.
-
-     - **Rangos de Precios 💰**  
-       Divide los anuncios o propiedades en rangos de precios (por ejemplo, `0-50k`, `50k-100k`, etc.) y calcula cuántos anuncios están en cada rango. ¡Ideal para histogramas!
-
-     - **Sectores más Caros 🔝**  
-       Calcula el precio promedio por sector o tipo de propiedad para destacar las zonas o tipos de mayor valor.
-
-     💡 **Implementación sugerida**: Utiliza funciones avanzadas de PostgreSQL como `GROUP BY` y `AVG` o librerías específicas para análisis en tu backend.
-
-## Requisito Adicional: **Despliegue** 🌐🚀
-
-Es indispensable que el proyecto esté **desplegado** en un servicio gratuito para poder testearlo directamente. Esto asegura que el evaluador pueda interactuar con tu API en un entorno real.
-
-### **Pasos sugeridos para el despliegue**:
-1. **Configura tu proyecto**:  
-   Asegúrate de que pueda ejecutarse en un entorno en la nube. Utiliza variables de entorno para manejar configuraciones sensibles. ⚙️  
-2. **Base de Datos**:  
-   Crea una base de datos PostgreSQL gratuita utilizando servicios como [**Neon**](https://neon.tech/) o [**ElephantSQL**](https://www.elephantsql.com/). 🐘  
-3. **Despliega tu proyecto**:  
-   - [**Guía para Vercel**](https://vercel.com/docs/concepts/projects/overview) 🌐 
-4. **Proporciona el enlace al proyecto desplegado** en el README de tu fork. ¡Asegúrate de que esté funcional y accesible! 🌟  
-
-## Instrucciones de Entrega
-
-- Realiza un fork de este repositorio: [Red-Atlas/backend-challenge](https://github.com/Red-Atlas/backend-challenge).
-- Crea un branch con tu nombre completo en el formato: nombre-apellido.
-- Sube tu código al branch correspondiente.
-- Desplegar la aplicación en un servicio gratuito como **Vercel**.
-
-- Incluye en el README del fork:
-  - Instrucciones en el `README.md` para instalar y ejecutar la aplicación.
-  - El enlace al proyecto desplegado.
-  - Un resumen de tu solución (enfoque, desafíos, decisiones técnicas).
-  - Realiza un pull request a este repositorio.
-
-### Criterios de Evaluación
-- Diseño de la base de datos y relaciones entre entidades.
-- Eficiencia y optimización en las consultas.
-- Buenas prácticas: modularidad, estructura del proyecto y manejo de errores.
-- Implementación de validaciones y seguridad.
-- Extras implementados.
-- **Despliegue funcional y accesible**.
+Este proyecto es una API para la gestión de información catastral e inmobiliaria, diseñada para manejar grandes volúmenes de datos, realizar consultas complejas y garantizar un rendimiento eficiente. La API incluye autenticación con JWT, autorización basada en roles, y permite realizar operaciones CRUD sobre propiedades, anuncios y transacciones.
 
 ---
 
-### 🚀 ¡Buena suerte!
+## Instalación y Configuración
+
+### Requisitos Previos
+
+1. **Node.js**: Versión 16 o superior.
+2. **npm**: Instalado junto con Node.js.
+3. **Docker y Docker Compose**: Para la base de datos PostgreSQL.
+4. **Git**: Para clonar el repositorio.
+
+---
+
+### Pasos de Instalación
+
+1. **Clonar el repositorio**
+
+   ```bash
+   git clone https://github.com/Drmanzanas/backend-challenge.git
+   cd backend-challenge
+   ```
+
+2. **Instalar dependencias**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configurar variables de entorno**
+
+   Copia el archivo `.env.example` a `.env` y edítalo con las variables necesarias:
+
+   ```bash
+   cp .env.example .env
+   ```
+---
+
+### Configuración de la Base de Datos
+
+#### Usando Docker
+
+Para levantar la base de datos PostgreSQL con Docker:
+
+1. **Iniciar el contenedor**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+   Esto levantará un contenedor de PostgreSQL en el puerto `5432` (o el que configures en `docker-compose.yml`).
+
+---
+
+### Migraciones y Seeds
+
+1. **Correr las migraciones**
+
+   Aplica las migraciones para crear las tablas necesarias:
+
+   ```bash
+   npm run migration:run
+   ```
+
+2. **Insertar roles predefinidos**
+
+   Carga los roles iniciales (`admin`, `user`):
+
+   ```bash
+   npm run seed:roles
+   ```
+
+---
+
+### Datos Aleatorios
+
+1. **Generar datos aleatorios**
+
+   Genera 10000 propiedades con anuncios y transacciones aleatorias:
+
+   ```bash
+   npm run generate:data
+   ```
+
+---
+
+### Levantar el Proyecto
+
+1. **Ejecutar en modo desarrollo**
+
+   Para iniciar el servidor en modo desarrollo:
+
+   ```bash
+   npm run dev
+   ```
+
+2. **Compilar y ejecutar en modo producción**
+
+   Primero, compila el proyecto:
+
+   ```bash
+   npm run build
+   ```
+
+   Luego, ejecuta el servidor en producción:
+
+   ```bash
+   npm start
+   ```
+
+---
+
+### Endpoints
+
+# API Documentation
+
+## **Autenticación**
+| Método | Endpoint              | Descripción                     |
+|--------|-----------------------|---------------------------------|
+| POST   | `/api/user/register`  | Registrar un nuevo usuario      |
+| POST   | `/api/user/login`     | Iniciar sesión y obtener token JWT |
+
+---
+
+## **Propiedades**  
+| Método | Endpoint                      | Descripción                                     |
+|--------|-------------------------------|-------------------------------------------------|
+| GET    | `/api/properties`             | Listar propiedades con filtros avanzados        |
+| GET    | `/api/properties/:id`         | Obtener una propiedad específica por ID         |
+| GET    | `/api/properties/valuations`  | Obtener propiedades con valuaciones dinámicas   |
+| POST   | `/api/properties`             | Crear una nueva propiedad (soporta bulk create) |
+| PUT    | `/api/properties/:id`         | Actualizar una propiedad específica por ID      |
+| DELETE | `/api/properties/:id`         | Eliminar una propiedad específica por ID        |
+
+---
+
+## **Anuncios**  
+| Método | Endpoint                        | Descripción                                     |
+|--------|---------------------------------|-------------------------------------------------|
+| GET    | `/api/advertisements`           | Listar anuncios con filtros avanzados           |
+| GET    | `/api/advertisements/:id`       | Obtener un anuncio específico por ID            |
+| POST   | `/api/advertisements`           | Crear un nuevo anuncio (soporta bulk create)    |
+| PUT    | `/api/advertisements/:id`       | Actualizar un anuncio específico por ID         |
+| DELETE | `/api/advertisements/:id`       | Eliminar un anuncio específico por ID           |
+
+---
+
+## **Transacciones**  
+| Método | Endpoint                      | Descripción                                     |
+|--------|-------------------------------|-------------------------------------------------|
+| GET    | `/api/transactions`           | Listar transacciones con filtros avanzados      |
+| GET    | `/api/transactions/:id`       | Obtener una transacción específica por ID       |
+| POST   | `/api/transactions`           | Crear una nueva transacción (soporta bulk create) |
+| PUT    | `/api/transactions/:id`       | Actualizar una transacción específica por ID    |
+| DELETE | `/api/transactions/:id`       | Eliminar una transacción específica por ID      |
+
+---
+
+## **Estructura General de Solicitudes**
+
+### **Headers Comunes**
+```json
+{
+  "Authorization": "Bearer <token>",
+  "Content-Type": "application/json"
+}
+```
+---
+
+### Despliegue
+
+Este proyecto está configurado para ser desplegado en servicios como Vercel. Sigue estos pasos:
+
+1. **Configurar base de datos remota**
+   - Usa servicios como [Neon.tech](https://neon.tech) o [ElephantSQL](https://www.elephantsql.com).
+
+2. **Proporcionar enlace**
+   - [Enlace de Vercel](https://backend-red-atlas-nrp1l6zj1-ulises-menems-projects.vercel.app).
+
+---
+
+**Autor**: [Ulises Menem]
