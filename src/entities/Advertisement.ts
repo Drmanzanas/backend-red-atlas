@@ -16,7 +16,7 @@ import { PropertyType } from '../enums/Properties';
     @PrimaryGeneratedColumn('uuid')
     id: string;
   
-    @Column('decimal', { precision: 10, scale: 2 })
+    @Column('int')
     price: number;
   
     @Column({

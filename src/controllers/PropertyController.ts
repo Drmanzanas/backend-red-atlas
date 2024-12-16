@@ -67,31 +67,45 @@ export class PropertyController {
         }
     };
 
-    static getAllWithValuations = async (_req: Request, res: Response) => {
+    static getAllWithValuations = async (req: Request, res: Response) => {
         try {
-            const propertyRepository = AppDataSource.getRepository(Property);
-            const qb: SelectQueryBuilder<Property> = propertyRepository.createQueryBuilder('property')
-                .leftJoinAndSelect('property.advertisements', 'advertisement')
-                .leftJoinAndSelect('property.transactions', 'transaction');
-
-            qb.addSelect(`
-                property.area * (
-                    SELECT AVG(ad.price / p.area)
-                    FROM advertisements ad
-                    JOIN properties p ON ad.property_id = p.id
-                    WHERE p.sector = property.sector
-                )
-            `, 'valuation');
-
-            const properties = await qb.getRawAndEntities();
-            const result = properties.entities.map((property, index) => ({
-                ...property,
-                valuation: parseFloat(properties.raw[index].valuation),
-            }));
-
-            res.json(result);
+            const { page = '1', limit = '100' } = req.query;
+    
+            const pageNumber = parseInt(page as string, 10) || 1;
+            const pageSize = parseInt(limit as string, 10) || 100;
+            const offset = (pageNumber - 1) * pageSize;
+    
+            const query = `
+                SELECT 
+                    p.*,
+                    ROUND(
+                        (p.area * COALESCE(
+                            (
+                                SELECT AVG(ad.price / prop.area)
+                                FROM advertisements ad
+                                INNER JOIN properties prop ON ad.property_id = prop.id
+                                WHERE prop.sector = p.sector
+                                AND prop.area > 0
+                            ), 0
+                        )), 2
+                    )::float AS valuation
+                FROM properties p
+                LEFT JOIN advertisements a ON p.id = a.property_id
+                LIMIT $1 OFFSET $2;
+            `;
+    
+            const propertiesWithValuation = await AppDataSource.query(query, [pageSize, offset]);
+    
+            res.status(200).json({
+                data: propertiesWithValuation,
+                pagination: {
+                    page: pageNumber,
+                    limit: pageSize,
+                    total: propertiesWithValuation.length,
+                },
+            });
         } catch (error) {
-            console.error('Error fetching properties with valuations:', error);
+            console.error('Error fetching valuations:', error);
             res.status(500).json({ message: 'Internal server error.' });
         }
     };
@@ -114,31 +128,6 @@ export class PropertyController {
             res.json(property);
         } catch (error) {
             console.error('Error fetching property:', error);
-            res.status(500).json({ message: 'Internal server error.' });
-        }
-    };
-
-    static create = async (req: Request, res: Response) => {
-        try {
-            const propertyRepository = AppDataSource.getRepository(Property);
-            const { address, area, ownerName, sector } = req.body;
-
-            if (!address || !area || !ownerName || !sector) {
-                res.status(400).json({ message: 'Missing required fields.' });
-                return;
-            }
-
-            const property = propertyRepository.create({
-                address,
-                area,
-                ownerName,
-                sector,
-            });
-
-            const savedProperty = await propertyRepository.save(property);
-            res.status(201).json(savedProperty);
-        } catch (error) {
-            console.error('Error creating property:', error);
             res.status(500).json({ message: 'Internal server error.' });
         }
     };
@@ -187,6 +176,53 @@ export class PropertyController {
             res.json({ message: 'Property deleted successfully.' });
         } catch (error) {
             console.error('Error deleting property:', error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    };
+
+    static create = async (req: Request, res: Response) => {
+        try {
+            const propertyRepository = AppDataSource.getRepository(Property);
+    
+            const data = Array.isArray(req.body) ? req.body : [req.body];
+    
+            const propertiesToSave: Property[] = [];
+            const errorsArray = [];
+    
+            for (const property of data) {
+                const { address, area, ownerName, sector } = property;
+    
+                if (!address || !area || !ownerName || !sector) {
+                    errorsArray.push({
+                        property,
+                        errors: ['Missing required fields: address, area, ownerName, sector.'],
+                    });
+                    continue;
+                }
+    
+                const newProperty = propertyRepository.create({ address, area, ownerName, sector });
+                propertiesToSave.push(newProperty);
+            }
+    
+            let savedProperties: Property[] = [];
+            if (propertiesToSave.length > 0) {
+                savedProperties = await propertyRepository.save(propertiesToSave);
+            }
+    
+            if (errorsArray.length > 0) {
+                res.status(207).json({
+                    message: 'Algunas propiedades no pudieron ser creadas.',
+                    successful: savedProperties,
+                    errors: errorsArray,
+                });
+            } else {
+                res.status(201).json({
+                    message: 'Todas las propiedades fueron creadas exitosamente.',
+                    properties: savedProperties,
+                });
+            }
+        } catch (error) {
+            console.error('Error creating properties:', error);
             res.status(500).json({ message: 'Internal server error.' });
         }
     };

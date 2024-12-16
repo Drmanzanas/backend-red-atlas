@@ -16,7 +16,7 @@ import { PropertySector } from '../enums/Properties';
     @Column()
     address: string;
   
-    @Column('decimal', { precision: 10, scale: 2 })
+    @Column('int') 
     area: number;
   
     @Column()
@@ -28,10 +28,10 @@ import { PropertySector } from '../enums/Properties';
     })
     sector: PropertySector;
   
-    
+
     @OneToMany(() => Advertisement, (advertisement) => advertisement.property, { cascade: true })
     advertisements: Advertisement[];
-    
+
     @OneToMany(() => Transaction, (transaction) => transaction.property, { cascade: true })
     transactions: Transaction[];
   }

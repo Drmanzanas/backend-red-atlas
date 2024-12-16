@@ -13,7 +13,9 @@
       "emitDecoratorMetadata": true,
       "experimentalDecorators": true,
       "resolveJsonModule": true
+
     },
     "include": ["src"],
-    "exclude": ["node_modules", "dist"]
+    "exclude": ["node_modules", "dist"],
+    "files": ["src/types/index.d.ts"]
   }

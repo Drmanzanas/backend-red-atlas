@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const AdvertisementController_1 = require("../../controllers/AdvertisementController");
+const asyncHandler_1 = require("../../middlewares/asyncHandler");
+const advertisementsRouter = (0, express_1.Router)();
+advertisementsRouter.post('/', (0, asyncHandler_1.asyncHandler)(AdvertisementController_1.AdvertisementController.create));
+advertisementsRouter.get('/', (0, asyncHandler_1.asyncHandler)(AdvertisementController_1.AdvertisementController.getAll));
+advertisementsRouter.get('/:id', (0, asyncHandler_1.asyncHandler)(AdvertisementController_1.AdvertisementController.getById));
+advertisementsRouter.put('/:id', (0, asyncHandler_1.asyncHandler)(AdvertisementController_1.AdvertisementController.update));
+advertisementsRouter.delete('/:id', (0, asyncHandler_1.asyncHandler)(AdvertisementController_1.AdvertisementController.delete));
+exports.default = advertisementsRouter;

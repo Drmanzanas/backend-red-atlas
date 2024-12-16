@@ -27,7 +27,7 @@ export class Transaction {
     @Column({ type: 'date' })
     date: Date;
 
-    @Column('decimal', { precision: 10, scale: 2 })
+    @Column('int')
     price: number;
 
     @ManyToOne(() => Property, (property) => property.transactions, { onDelete: 'CASCADE' })

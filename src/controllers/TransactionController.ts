@@ -5,19 +5,21 @@ import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateTransactionDto, UpdateTransactionDto } from '../dto/ClassTransactionDto';
 import { AppDataSource } from '../database/data-source';
+import { SelectQueryBuilder } from 'typeorm';
 
 export class TransactionController {
     static create = async (req: Request, res: Response) => {
         try {
             const transactionsData = Array.isArray(req.body) ? req.body : [req.body];
-
+    
             const savedTransactions = [];
             const errorsArray = [];
-
+            const transactionsToSave = [];
+    
             for (const transactionData of transactionsData) {
                 const createDto = plainToClass(CreateTransactionDto, transactionData);
                 const errors = await validate(createDto, { whitelist: true, forbidNonWhitelisted: true });
-
+    
                 if (errors.length > 0) {
                     errorsArray.push({
                         transactionData,
@@ -28,7 +30,7 @@ export class TransactionController {
                     });
                     continue;
                 }
-
+    
                 const property = await AppDataSource.getRepository(Property).findOneBy({ id: createDto.property_id });
                 if (!property) {
                     errorsArray.push({
@@ -37,19 +39,23 @@ export class TransactionController {
                     });
                     continue;
                 }
-
-                const transaction = AppDataSource.getRepository(Transaction).create({
-                    address: createDto.address,
-                    type: createDto.type,
-                    date: createDto.date,
-                    price: createDto.price,
-                    property,
-                });
-
-                const savedTransaction = await AppDataSource.getRepository(Transaction).save(transaction);
-                savedTransactions.push(savedTransaction);
+    
+                transactionsToSave.push(
+                    AppDataSource.getRepository(Transaction).create({
+                        address: createDto.address,
+                        type: createDto.type,
+                        date: createDto.date,
+                        price: createDto.price,
+                        property,
+                    })
+                );
             }
-
+    
+            if (transactionsToSave.length > 0) {
+                const saved = await AppDataSource.getRepository(Transaction).save(transactionsToSave);
+                savedTransactions.push(...saved);
+            }
+    
             if (errorsArray.length > 0) {
                 res.status(207).json({
                     message: 'Algunas transacciones no pudieron ser creadas.',
@@ -67,13 +73,69 @@ export class TransactionController {
             res.status(500).json({ message: 'Error interno del servidor.' });
         }
     };
-
-    static getAll = async (_req: Request, res: Response) => {
+    
+    static getAll = async (req: Request, res: Response) => {
         try {
-            const transactions = await AppDataSource.getRepository(Transaction).find({
-                relations: ['property'],
+            const transactionRepository = AppDataSource.getRepository(Transaction);
+            const {
+                type,
+                minPrice,
+                maxPrice,
+                startDate,
+                endDate,
+                orderBy = 'id',
+                order = 'ASC',
+                page = '1',
+                limit = '10',
+            } = req.query;
+
+            const pageNumber = parseInt(page as string, 10) || 1;
+            const pageSize = parseInt(limit as string, 10) || 10;
+            const skip = (pageNumber - 1) * pageSize;
+
+            const qb: SelectQueryBuilder<Transaction> = transactionRepository.createQueryBuilder('transaction')
+                .leftJoinAndSelect('transaction.property', 'property');
+
+            if (type) {
+                qb.andWhere('transaction.type = :type', { type });
+            }
+
+            if (minPrice) {
+                qb.andWhere('transaction.price >= :minPrice', { minPrice: parseFloat(minPrice as string) });
+            }
+
+            if (maxPrice) {
+                qb.andWhere('transaction.price <= :maxPrice', { maxPrice: parseFloat(maxPrice as string) });
+            }
+
+            if (startDate) {
+                qb.andWhere('transaction.date >= :startDate', { startDate: new Date(startDate as string) });
+            }
+
+            if (endDate) {
+                qb.andWhere('transaction.date <= :endDate', { endDate: new Date(endDate as string) });
+            }
+
+            const allowedOrderFields = ['id', 'price', 'date', 'type', 'address'];
+            const orderByField = allowedOrderFields.includes(orderBy as string) ? orderBy : 'id';
+            const orderDirection = order === 'DESC' ? 'DESC' : 'ASC';
+
+            qb.orderBy(`transaction.${orderByField}`, orderDirection as 'ASC' | 'DESC');
+            qb.skip(skip).take(pageSize);
+
+            const [transactions, total] = await qb.getManyAndCount();
+
+            const totalPages = Math.ceil(total / pageSize);
+
+            res.status(200).json({
+                data: transactions,
+                pagination: {
+                    total,
+                    page: pageNumber,
+                    limit: pageSize,
+                    totalPages,
+                },
             });
-            res.status(200).json(transactions);
         } catch (error) {
             console.error('Error al obtener las transacciones:', error);
             res.status(500).json({ message: 'Error interno del servidor.' });
